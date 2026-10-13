@@ -1,42 +1,37 @@
 {
-  "phase": "4_Final_Exit_Gate",
-  "sovereignty_standards": [
-    "CLINICAL_INTEGRITY",
-    "PATIENT_SAFETY",
-    "PROFESSIONAL_VOICE",
-    "DISCLOSURE_COMPLIANCE",
-    "SCOPE_INTEGRITY",
-    "AUDIT_TRAIL"
-  ],
-  "pass_conditions": [
-    {
-      "check": "all_six_standards_clear",
-      "condition": "zero flags across all six clinical sovereignty standards",
-      "on_fail": "hard_stop - publication blocked"
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CIATPhase4ClinicalSovereign",
+  "type": "object",
+  "properties": {
+    "document_id": { "type": "string" },
+    "practitioner_id": { "type": "string" },
+    "timestamp_utc": { "type": "string", "format": "date-time" },
+    "hash_chain": {
+      "type": "object",
+      "properties": {
+        "identity_context_hash": { "type": "string" },
+        "source_hierarchy_hash": { "type": "string" },
+        "phase1_gate_hash": { "type": "string" },
+        "phase2_gate_hash": { "type": "string" },
+        "phase3_practitioner_gate_hash": { "type": "string" }
+      },
+      "required": [
+        "identity_context_hash",
+        "source_hierarchy_hash",
+        "phase1_gate_hash",
+        "phase2_gate_hash",
+        "phase3_practitioner_gate_hash"
+      ]
     },
-    {
-      "check": "audit_trail_complete",
-      "condition": "Phase 3 correction audit log generated and archived",
-      "on_fail": "hard_stop - ungoverned content cannot receive SOVEREIGN status"
-    },
-    {
-      "check": "clinical_integrity_score",
-      "condition": "medical_content_integrity_score >= 36",
-      "on_fail": "hard_stop - score below clinical threshold"
-    },
-    {
-      "check": "practitioner_final_approval",
-      "condition": "licensed practitioner has confirmed YES for Phase 4",
-      "on_fail": "hard_stop - wait for practitioner confirmation"
-    }
-  ],
-  "score_triage": {
-    "36_to_40": "SOVEREIGN - APPROVED FOR PUBLICATION",
-    "28_to_35": "CLINICAL_REVIEW_REQUIRED - return to flagged prompts",
-    "below_28": "DO_NOT_PUBLISH - reset Phase 0, new source documents required"
+    "hmac_sha256_signature": { "type": "string" },
+    "verification_status": { "type": "string", "enum": ["PASSED", "REJECTED"] }
   },
-  "gate_status": {
-    "SOVEREIGN": "all conditions true, score >= 36, audit log archived",
-    "BLOCKED": "any condition false, publication not permitted under any circumstance"
-  }
+  "required": [
+    "document_id",
+    "practitioner_id",
+    "timestamp_utc",
+    "hash_chain",
+    "hmac_sha256_signature",
+    "verification_status"
+  ]
 }
