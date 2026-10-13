@@ -4,8 +4,8 @@
   "type": "object",
   "properties": {
     "document_id": { "type": "string" },
-    "status": { "type": "string" },
-    "character_count": { "type": "integer" }
+    "mandates_evaluated": { "type": "integer" },
+    "status": { "type": "string" }
   },
-  "required": ["document_id", "status", "character_count"]
+  "required": ["document_id", "mandates_evaluated", "status"]
 }
