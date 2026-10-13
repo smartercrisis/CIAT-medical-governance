@@ -1,0 +1,16 @@
+{
+  "protocol": "CIAT_Medical_Governance_v2",
+  "framework": "CHIMERA CIAT",
+  "governance_tier": "CLINICAL",
+  "practitioner_identity": {
+    "name": "[FULL NAME]",
+    "professional_title": "[TITLE]",
+    "license_type": "Doctor / Pharmacist / Medical_Content_Specialist",
+    "specialty": "[SPECIALTY]",
+    "license_confirmed": false
+  },
+  "phase_3_rule": {
+    "condition": "license_confirmed must be true",
+    "on_fail": "hard_stop Phase 3 blocked until identity confirmed"
+  }
+}
