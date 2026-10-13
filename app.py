@@ -1,5 +1,6 @@
 import streamlit as st
 import json
+import re
 from datetime import datetime
 
 # Title & Header
@@ -18,7 +19,9 @@ if "content_draft" not in st.session_state:
 if "flags" not in st.session_state:
     st.session_state.flags = []
 
-# Sidebar Setup
+# ==========================================
+# PHASE 0: SIDEBAR IDENTITY & SOURCE LOCK
+# ==========================================
 st.sidebar.header("Phase 0: Source & Identity Lock")
 practitioner_name = st.sidebar.text_input("Practitioner Full Name", value="Dr. Tarek Ali")
 professional_title = st.sidebar.text_input("Professional Title", value="Consultant General Practitioner")
@@ -35,20 +38,35 @@ if st.sidebar.button("Lock Identity & Sources (Phase 0)"):
     else:
         st.error("Phase 0 failed: Practitioner name and source documents are required.")
 
-# Main Interface: Phase 1 & 2
+# ==========================================
+# PHASE 1 & 2: CLAIM AUDIT & TIER SCANNING
+# ==========================================
 if st.session_state.phase >= 1:
     st.markdown("---")
     st.header("Phase 1 & 2: Claim Audit & Tier Verification")
     st.session_state.content_draft = st.text_area("Paste Content Draft for Governance Scan", value=st.session_state.content_draft, height=120)
     
     if st.button("Run Deterministic Claim Audit"):
+        # Simulated scan targeting unverified claims and medical risks
         st.session_state.flags = [
-            {"id": 1, "sentence": "Reduces chronic hypertension within 48 hours completely.", "category": "TIER_5_UNVERIFIED_SOURCE"},
-            {"id": 2, "sentence": "Safe to stop prescription medication if symptoms subside.", "category": "SELF_TREATMENT_RISK"}
+            {
+                "id": 1, 
+                "sentence": "Reductions in chronic hypertension within 48 hours completely can be achieved with our proprietary herbal extract.", 
+                "category": "TIER_5_UNVERIFIED_SOURCE",
+                "keywords": ["48 hours", "herbal extract", "chronic hypertension"]
+            },
+            {
+                "id": 2, 
+                "sentence": "Safe to stop prescription medication if symptoms subside.", 
+                "category": "SELF_TREATMENT_RISK",
+                "keywords": ["stop prescription", "symptoms subside"]
+            }
         ]
         st.session_state.phase = 3
 
-# Phase 3: Practitioner Identity Gate
+# ==========================================
+# PHASE 3: PRACTITIONER IDENTITY GATE
+# ==========================================
 if st.session_state.phase >= 3:
     st.markdown("---")
     st.header("Phase 3: Practitioner Identity Gate (Human-in-the-Loop)")
@@ -63,19 +81,43 @@ if st.session_state.phase >= 3:
             st.write(f"**Flag #{flag['id']} [{flag['category']}]**: *{flag['sentence']}*")
             action = st.selectbox(f"Instruction #{flag['id']}", ["REMOVE", "REWRITE", "SOURCE", "APPROVE_WITH_DISCLOSURE"], key=f"act_{flag['id']}")
             input_text = st.text_input(f"Practitioner Input / Replacement Text #{flag['id']}", key=f"inp_{flag['id']}")
-            resolutions[flag['id']] = {"action": action, "input": input_text, "sentence": flag['sentence']}
+            
+            resolutions[flag['id']] = {
+                "action": action, 
+                "input": input_text, 
+                "sentence": flag['sentence'],
+                "keywords": flag['keywords']
+            }
             
         if st.button("Generate Final Governed Post & Audit Log (Object 6)"):
-            # Process final text modification
-            final_text = st.session_state.content_draft
-            for f_id, res in resolutions.items():
-                target_sentence = res["sentence"]
-                if res["action"] == "REMOVE":
-                    final_text = final_text.replace(target_sentence, "")
-                elif res["action"] == "REWRITE" and res["input"]:
-                    final_text = final_text.replace(target_sentence, res["input"])
+            working_text = st.session_state.content_draft
+            
+            # Sentence-level processing to prevent silent bypasses
+            sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', working_text) if s.strip()]
+            cleaned_sentences = []
 
-            st.session_state.final_text = final_text.strip()
+            for sentence in sentences:
+                sentence_removed = False
+                modified_sentence = sentence
+                
+                for f_id, res in resolutions.items():
+                    # Check if the sentence matches exact text or contains key trigger phrases
+                    exact_match = res["sentence"].lower() in sentence.lower()
+                    keyword_match = any(kw.lower() in sentence.lower() for kw in res["keywords"])
+                    
+                    if exact_match or keyword_match:
+                        if res["action"] == "REMOVE":
+                            sentence_removed = True
+                            break
+                        elif res["action"] == "REWRITE" and res["input"]:
+                            modified_sentence = res["input"]
+                
+                if not sentence_removed:
+                    cleaned_sentences.append(modified_sentence)
+
+            # Reconstruct final text
+            st.session_state.final_text = " ".join(cleaned_sentences)
+            
             st.session_state.audit_log = {
                 "document_id": f"CIAT-MED-{datetime.utcnow().strftime('%Y%m%d')}-{platform}",
                 "practitioner_name": practitioner_name,
@@ -88,7 +130,9 @@ if st.session_state.phase >= 3:
             st.session_state.phase = 4
             st.success("Governance complete. Final post generated.")
 
-# Phase 4: Clinical Sovereignty Gate & Final Output
+# ==========================================
+# PHASE 4: CLINICAL SOVEREIGNTY GATE
+# ==========================================
 if st.session_state.phase == 4:
     st.markdown("---")
     st.header("Phase 4: Clinical Sovereignty Gate & Final Post")
