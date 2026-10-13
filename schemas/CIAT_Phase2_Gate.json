@@ -1,0 +1,44 @@
+{
+  "phase": "2_Dual_Audience_Verification",
+  "prompts": [
+    "03_Patient_Comprehension_Layer",
+    "04_Ethics_Compliance_Filter"
+  ],
+  "prohibited_flags": [
+    "SELF_TREATMENT_RISK",
+    "DANGEROUS_SIMPLIFICATION",
+    "FEAR_BASED_ENGAGEMENT",
+    "CREDENTIAL_OVERCLAIM"
+  ],
+  "pass_conditions": [
+    {
+      "check": "no_self_treatment_risk",
+      "condition": "zero SELF_TREATMENT_RISK flags remain unresolved",
+      "on_fail": "hard_stop - patient safety flags are non-negotiable"
+    },
+    {
+      "check": "no_dangerous_simplification",
+      "condition": "zero DANGEROUS_SIMPLIFICATION flags remain",
+      "on_fail": "hard_stop - clinical meaning cannot be distorted for readability"
+    },
+    {
+      "check": "no_credential_overclaim",
+      "condition": "zero CREDENTIAL_OVERCLAIM flags remain",
+      "on_fail": "hard_stop - scope violation is a professional liability"
+    },
+    {
+      "check": "comprehension_risk_reviewed",
+      "condition": "all COMPREHENSION_RISK flags reviewed by practitioner",
+      "on_fail": "soft_stop - practitioner decision required"
+    },
+    {
+      "check": "practitioner_present_confirmed",
+      "condition": "licensed practitioner confirmed present for Phase 3",
+      "on_fail": "hard_stop - Phase 3 cannot begin without practitioner"
+    }
+  ],
+  "gate_status": {
+    "OPEN": "all conditions true, Phase 3 may begin",
+    "CLOSED": "any condition false, Phase 3 blocked"
+  }
+}
