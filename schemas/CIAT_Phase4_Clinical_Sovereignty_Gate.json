@@ -1,0 +1,42 @@
+{
+  "phase": "4_Final_Exit_Gate",
+  "sovereignty_standards": [
+    "CLINICAL_INTEGRITY",
+    "PATIENT_SAFETY",
+    "PROFESSIONAL_VOICE",
+    "DISCLOSURE_COMPLIANCE",
+    "SCOPE_INTEGRITY",
+    "AUDIT_TRAIL"
+  ],
+  "pass_conditions": [
+    {
+      "check": "all_six_standards_clear",
+      "condition": "zero flags across all six clinical sovereignty standards",
+      "on_fail": "hard_stop - publication blocked"
+    },
+    {
+      "check": "audit_trail_complete",
+      "condition": "Phase 3 correction audit log generated and archived",
+      "on_fail": "hard_stop - ungoverned content cannot receive SOVEREIGN status"
+    },
+    {
+      "check": "clinical_integrity_score",
+      "condition": "medical_content_integrity_score >= 36",
+      "on_fail": "hard_stop - score below clinical threshold"
+    },
+    {
+      "check": "practitioner_final_approval",
+      "condition": "licensed practitioner has confirmed YES for Phase 4",
+      "on_fail": "hard_stop - wait for practitioner confirmation"
+    }
+  ],
+  "score_triage": {
+    "36_to_40": "SOVEREIGN - APPROVED FOR PUBLICATION",
+    "28_to_35": "CLINICAL_REVIEW_REQUIRED - return to flagged prompts",
+    "below_28": "DO_NOT_PUBLISH - reset Phase 0, new source documents required"
+  },
+  "gate_status": {
+    "SOVEREIGN": "all conditions true, score >= 36, audit log archived",
+    "BLOCKED": "any condition false, publication not permitted under any circumstance"
+  }
+}
