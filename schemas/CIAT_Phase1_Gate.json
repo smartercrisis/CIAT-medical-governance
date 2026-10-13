@@ -1,38 +1,11 @@
 {
-  "phase": "1_Clinical_Source_Verification",
-  "prompts": [
-    "01_Clinical_Hallucination_Check",
-    "02_Medical_Claim_Audit"
-  ],
-  "prohibited_flags": [
-    "TIER_5_UNVERIFIED_SOURCE",
-    "TIER_5_DISTORTED_CLAIM",
-    "INVENTED"
-  ],
-  "pass_conditions": [
-    {
-      "check": "no_tier5_flags",
-      "condition": "zero TIER_5 flags of any type remain unresolved",
-      "on_fail": "hard_stop - Tier 5 claims cannot proceed to Phase 2"
-    },
-    {
-      "check": "no_invented_claims",
-      "condition": "zero INVENTED claim labels remain unresolved",
-      "on_fail": "hard_stop - invented medical claims are never permitted"
-    },
-    {
-      "check": "overstated_reviewed",
-      "condition": "all OVERSTATED labels reviewed by practitioner",
-      "on_fail": "soft_stop - practitioner decision required"
-    },
-    {
-      "check": "practitioner_confirmation",
-      "condition": "licensed practitioner has confirmed YES explicitly",
-      "on_fail": "hard_stop - wait for confirmation"
-    }
-  ],
-  "gate_status": {
-    "OPEN": "all pass_conditions true, Phase 2 may begin",
-    "CLOSED": "one or more conditions false, Phase 2 blocked"
-  }
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CIATPhase1Gate",
+  "type": "object",
+  "properties": {
+    "document_id": { "type": "string" },
+    "status": { "type": "string" },
+    "character_count": { "type": "integer" }
+  },
+  "required": ["document_id", "status", "character_count"]
 }
