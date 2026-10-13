@@ -8,133 +8,147 @@ from datetime import datetime
 st.set_page_config(page_title="CIAT Medical Governance Engine", layout="wide")
 st.title("CIAT Medical Governance Engine")
 
-def load_schema(filename):
-    path = os.path.join("schemas", filename)
-    if os.path.exists(path):
-        with open(path, "r") as f:
-            return json.load(f)
-    return None
-
 def compute_sha256(data_dict):
     encoded = json.dumps(data_dict, sort_keys=True).encode('utf-8')
     return hashlib.sha256(encoded).hexdigest()
 
-# Load exact schemas from repository
-schema_identity = load_schema("CIAT_Practitioner_Identity_Context.json")
-schema_hierarchy = load_schema("CIAT_Source_Hierarchy_Schema.json")
-schema_phase1 = load_schema("CIAT_Phase1_Gate.json")
-schema_phase2 = load_schema("CIAT_Phase2_Gate.json")
-schema_phase3 = load_schema("CIAT_Phase3_Practitioner_Gate.json")
-schema_phase4 = load_schema("CIAT_Phase4_Clinical_Sovereign.json")
-
-# Phase 0: Identity Lock
-st.sidebar.header("Practitioner & System Identity")
+# Sidebar: Operator Config
+st.sidebar.header("Practitioner Identity")
 practitioner_id = st.sidebar.text_input("Practitioner ID", value="PRACTITIONER-01")
 license_key = st.sidebar.text_input("License Key", value="LIC-SECURE-2026", type="password")
 
-# Document Ingestion Engine
-st.header("Manuscript Ingestion")
-uploaded_file = st.file_uploader("Upload Medical Manuscript (.txt, .md)", type=["txt", "md"])
+# 1. Load Anchor File
+st.header("1. Medical Anchor Standard")
+default_anchor_path = os.path.join("schemas", "anchor_standard.json")
+anchor_data = None
 
-if uploaded_file is not None:
-    raw_text = uploaded_file.read().decode("utf-8")
-    st.info(f"Ingested File: {uploaded_file.name} | {len(raw_text)} characters | {len(raw_text.split())} words")
+uploaded_anchor = st.file_uploader("Upload Custom Anchor (.json)", type=["json"])
 
-    if st.button("Execute Governance Pipeline"):
+if uploaded_anchor is not None:
+    anchor_data = json.load(uploaded_anchor)
+    st.success(f"Custom Anchor Loaded: {uploaded_anchor.name}")
+elif os.path.exists(default_anchor_path):
+    with open(default_anchor_path, "r") as f:
+        anchor_data = json.load(f)
+    st.info("Loaded System Anchor: FDA/ICMJE/HIPAA Combined Framework")
+
+# 2. Input Manuscript Content
+st.header("2. Target Manuscript Text")
+user_content = st.text_area("Paste manuscript or trial draft text here...", height=250)
+
+if anchor_data and user_content.strip():
+    if st.button("Execute Governance Audit"):
         doc_id = f"CIAT-DOC-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
         timestamp = datetime.utcnow().isoformat() + "Z"
 
-        # 1. Identity & Context Payload
-        identity_payload = {
+        # Object 1: Identity Context
+        obj1_identity = {
             "practitioner_id": practitioner_id,
             "session_id": f"SESS-{hashlib.md5(timestamp.encode()).hexdigest()[:8]}",
             "timestamp_utc": timestamp
         }
-        hash_identity = compute_sha256(identity_payload)
+        hash1 = compute_sha256(obj1_identity)
 
-        # 2. Source Hierarchy & Ingestion Payload
-        hierarchy_payload = {
+        # Object 2: Source Hierarchy
+        obj2_hierarchy = {
             "document_id": doc_id,
-            "file_name": uploaded_file.name,
-            "raw_text": raw_text
+            "anchor_title": anchor_data.get("title", "Unknown Anchor"),
+            "anchor_version": anchor_data.get("version", "1.0"),
+            "content_length": len(user_content),
+            "content_hash": hashlib.sha256(user_content.encode()).hexdigest()
         }
-        hash_hierarchy = compute_sha256(hierarchy_payload)
+        hash2 = compute_sha256(obj2_hierarchy)
 
-        # 3. Phase 1 Gate Audit
-        phase1_payload = {
+        # Audit Execution: Match text against anchor mandates
+        detected_violations = []
+        user_text_lower = user_content.lower()
+
+        for mandate in anchor_data.get("regulatory_mandates", []):
+            for pattern in mandate.get("trigger_patterns", []):
+                if pattern in user_text_lower:
+                    detected_violations.append({
+                        "rule_id": mandate["rule_id"],
+                        "reference": mandate["regulatory_reference"],
+                        "category": mandate["category"],
+                        "severity": mandate["severity"],
+                        "flagged_term": pattern
+                    })
+
+        # Object 3: Phase 1 Gate
+        obj3_gate1 = {
             "document_id": doc_id,
-            "status": "INGESTED",
-            "character_count": len(raw_text)
+            "mandates_evaluated": len(anchor_data.get("regulatory_mandates", [])),
+            "status": "INGESTED"
         }
-        hash_phase1 = compute_sha256(phase1_payload)
+        hash3 = compute_sha256(obj3_gate1)
 
-        # 4. Phase 2 Gate (Claim Detection & Filtering)
-        prohibited_terms = ["guaranteed", "100% cure", "instant result", "unverified"]
-        flagged = [term for term in prohibited_terms if term in raw_text.lower()]
-        
-        phase2_payload = {
+        # Object 4: Phase 2 Gate
+        obj4_gate2 = {
             "document_id": doc_id,
-            "flagged_claims": flagged,
-            "violation_count": len(flagged)
+            "total_violations": len(detected_violations),
+            "violations_matrix": detected_violations
         }
-        hash_phase2 = compute_sha256(phase2_payload)
+        hash4 = compute_sha256(obj4_gate2)
 
-        # 5. Phase 3 Practitioner Gate (Sanitization)
-        sanitized_text = raw_text
-        for term in flagged:
-            sanitized_text = sanitized_text.replace(term, f"[FLAGGED: {term}]")
+        # Object 5: Phase 3 Practitioner Gate
+        sanitized_content = user_content
+        for v in detected_violations:
+            term = v["flagged_term"]
+            sanitized_content = sanitized_content.replace(term, f"[VIOLATION-{v['rule_id']}: {term}]")
 
-        phase3_payload = {
+        obj5_gate3 = {
             "document_id": doc_id,
-            "sanitized_payload": sanitized_text,
-            "actions_taken": ["STRIPPED" if flagged else "NONE"]
+            "sanitized_payload": sanitized_content,
+            "modifications_count": len(detected_violations)
         }
-        hash_phase3 = compute_sha256(phase3_payload)
+        hash5 = compute_sha256(obj5_gate3)
 
-        # 6. Phase 4 Clinical Sovereign Output (Cryptographic Signature)
-        master_string = f"{hash_identity}{hash_hierarchy}{hash_phase1}{hash_phase2}{hash_phase3}"
-        sig = hmac.new(license_key.encode('utf-8'), master_string.encode('utf-8'), hashlib.sha256).hexdigest()
+        # Object 6: Clinical Sovereign HMAC Ledger
+        master_chain = f"{hash1}{hash2}{hash3}{hash4}{hash5}"
+        sig = hmac.new(license_key.encode('utf-8'), master_chain.encode('utf-8'), hashlib.sha256).hexdigest()
 
-        phase4_payload = {
+        obj6_sovereign = {
             "document_id": doc_id,
             "practitioner_id": practitioner_id,
             "timestamp_utc": timestamp,
             "hash_chain": {
-                "identity_context_hash": hash_identity,
-                "source_hierarchy_hash": hash_hierarchy,
-                "phase1_gate_hash": hash_phase1,
-                "phase2_gate_hash": hash_phase2,
-                "phase3_practitioner_gate_hash": hash_phase3
+                "identity_context_hash": hash1,
+                "source_hierarchy_hash": hash2,
+                "phase1_gate_hash": hash3,
+                "phase2_gate_hash": hash4,
+                "phase3_practitioner_gate_hash": hash5
             },
             "hmac_sha256_signature": sig,
-            "verification_status": "PASSED" if not flagged else "REJECTED"
+            "verification_status": "PASSED" if not detected_violations else "REJECTED"
         }
 
         # Results Display
-        st.success("Pipeline Execution Complete.")
+        st.success("Audit Complete.")
         col1, col2 = st.columns(2)
 
         with col1:
-            st.subheader("Phase 4 Clinical Sovereign Ledger")
-            st.json(phase4_payload)
+            st.subheader("Clinical Sovereign Ledger (Object 6)")
+            st.json(obj6_sovereign)
+            st.subheader("Regulatory Violations Breakdown")
+            st.json(obj4_gate2)
 
         with col2:
-            st.subheader("Sanitized Output Document")
-            st.text_area("Sanitized Payload", sanitized_text, height=300)
+            st.subheader("Sanitized Manuscript Output")
+            st.text_area("Output Payload", sanitized_content, height=350)
 
-        # Full Master Audit Bundle Export
-        master_bundle = {
-            "CIAT_Practitioner_Identity_Context": identity_payload,
-            "CIAT_Source_Hierarchy_Schema": hierarchy_payload,
-            "CIAT_Phase1_Gate": phase1_payload,
-            "CIAT_Phase2_Gate": phase2_payload,
-            "CIAT_Phase3_Practitioner_Gate": phase3_payload,
-            "CIAT_Phase4_Clinical_Sovereign": phase4_payload
+        # Download Master Certificate
+        master_export = {
+            "CIAT_Practitioner_Identity_Context": obj1_identity,
+            "CIAT_Source_Hierarchy_Schema": obj2_hierarchy,
+            "CIAT_Phase1_Gate": obj3_gate1,
+            "CIAT_Phase2_Gate": obj4_gate2,
+            "CIAT_Phase3_Practitioner_Gate": obj5_gate3,
+            "CIAT_Phase4_Clinical_Sovereign": obj6_sovereign
         }
 
         st.download_button(
             label="Download Master Audit Certificate (JSON)",
-            data=json.dumps(master_bundle, indent=2),
-            file_name=f"{doc_id}_master_audit.json",
+            data=json.dumps(master_export, indent=2),
+            file_name=f"{doc_id}_audit.json",
             mime="application/json"
         )
