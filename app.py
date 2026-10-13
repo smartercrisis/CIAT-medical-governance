@@ -1,158 +1,140 @@
 import streamlit as st
 import json
-import re
+import hashlib
+import hmac
+import os
 from datetime import datetime
 
-# Title & Header
-st.title("CHIMERA CIAT: Medical Content Governance Engine")
-st.caption("Deterministic Execution Layer & Clinical Validation Gate")
+st.set_page_config(page_title="CIAT Medical Governance Engine", layout="wide")
+st.title("CIAT Medical Governance Engine")
 
-# Initialize Session State
-if "phase" not in st.session_state:
-    st.session_state.phase = 0
-if "identity_confirmed" not in st.session_state:
-    st.session_state.identity_confirmed = False
-if "audit_log" not in st.session_state:
-    st.session_state.audit_log = {}
-if "content_draft" not in st.session_state:
-    st.session_state.content_draft = ""
-if "flags" not in st.session_state:
-    st.session_state.flags = []
+def load_schema(filename):
+    path = os.path.join("schemas", filename)
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return json.load(f)
+    return None
 
-# ==========================================
-# PHASE 0: SIDEBAR IDENTITY & SOURCE LOCK
-# ==========================================
-st.sidebar.header("Phase 0: Source & Identity Lock")
-practitioner_name = st.sidebar.text_input("Practitioner Full Name", value="Dr. Tarek Ali")
-professional_title = st.sidebar.text_input("Professional Title", value="Consultant General Practitioner")
-license_type = st.sidebar.selectbox("License Type", ["Doctor", "Pharmacist", "Medical_Content_Specialist"])
-specialty = st.sidebar.text_input("Specialty", value="General Practice")
-platform = st.sidebar.selectbox("Target Platform", ["Instagram", "LinkedIn", "Patient Handout", "Website"])
+def compute_sha256(data_dict):
+    encoded = json.dumps(data_dict, sort_keys=True).encode('utf-8')
+    return hashlib.sha256(encoded).hexdigest()
 
-uploaded_sources = st.sidebar.file_uploader("Upload Tier 1/2 Source Documents", accept_multiple_files=True)
+# Load exact schemas from repository
+schema_identity = load_schema("CIAT_Practitioner_Identity_Context.json")
+schema_hierarchy = load_schema("CIAT_Source_Hierarchy_Schema.json")
+schema_phase1 = load_schema("CIAT_Phase1_Gate.json")
+schema_phase2 = load_schema("CIAT_Phase2_Gate.json")
+schema_phase3 = load_schema("CIAT_Phase3_Practitioner_Gate.json")
+schema_phase4 = load_schema("CIAT_Phase4_Clinical_Sovereign.json")
 
-if st.sidebar.button("Lock Identity & Sources (Phase 0)"):
-    if practitioner_name and len(uploaded_sources) > 0:
-        st.session_state.phase = 1
-        st.success("Source Hierarchy Lock confirmed. Clinical governance active.")
-    else:
-        st.error("Phase 0 failed: Practitioner name and source documents are required.")
+# Phase 0: Identity Lock
+st.sidebar.header("Practitioner & System Identity")
+practitioner_id = st.sidebar.text_input("Practitioner ID", value="PRACTITIONER-01")
+license_key = st.sidebar.text_input("License Key", value="LIC-SECURE-2026", type="password")
 
-# ==========================================
-# PHASE 1 & 2: CLAIM AUDIT & TIER SCANNING
-# ==========================================
-if st.session_state.phase >= 1:
-    st.markdown("---")
-    st.header("Phase 1 & 2: Claim Audit & Tier Verification")
-    st.session_state.content_draft = st.text_area("Paste Content Draft for Governance Scan", value=st.session_state.content_draft, height=120)
-    
-    if st.button("Run Deterministic Claim Audit"):
-        # Simulated scan targeting unverified claims and medical risks
-        st.session_state.flags = [
-            {
-                "id": 1, 
-                "sentence": "Reductions in chronic hypertension within 48 hours completely can be achieved with our proprietary herbal extract.", 
-                "category": "TIER_5_UNVERIFIED_SOURCE",
-                "keywords": ["48 hours", "herbal extract", "chronic hypertension"]
-            },
-            {
-                "id": 2, 
-                "sentence": "Safe to stop prescription medication if symptoms subside.", 
-                "category": "SELF_TREATMENT_RISK",
-                "keywords": ["stop prescription", "symptoms subside"]
-            }
-        ]
-        st.session_state.phase = 3
+# Document Ingestion Engine
+st.header("Manuscript Ingestion")
+uploaded_file = st.file_uploader("Upload Medical Manuscript (.txt, .md)", type=["txt", "md"])
 
-# ==========================================
-# PHASE 3: PRACTITIONER IDENTITY GATE
-# ==========================================
-if st.session_state.phase >= 3:
-    st.markdown("---")
-    st.header("Phase 3: Practitioner Identity Gate (Human-in-the-Loop)")
-    st.info("Phase 3 requires the licensed practitioner personally.")
-    
-    auth_check = st.checkbox(f"I verify that I am {practitioner_name}, licensed as a {license_type}.")
-    
-    if auth_check:
-        st.session_state.identity_confirmed = True
-        resolutions = {}
-        for flag in st.session_state.flags:
-            st.write(f"**Flag #{flag['id']} [{flag['category']}]**: *{flag['sentence']}*")
-            action = st.selectbox(f"Instruction #{flag['id']}", ["REMOVE", "REWRITE", "SOURCE", "APPROVE_WITH_DISCLOSURE"], key=f"act_{flag['id']}")
-            input_text = st.text_input(f"Practitioner Input / Replacement Text #{flag['id']}", key=f"inp_{flag['id']}")
-            
-            resolutions[flag['id']] = {
-                "action": action, 
-                "input": input_text, 
-                "sentence": flag['sentence'],
-                "keywords": flag['keywords']
-            }
-            
-        if st.button("Generate Final Governed Post & Audit Log (Object 6)"):
-            working_text = st.session_state.content_draft
-            
-            # Sentence-level processing to prevent silent bypasses
-            sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', working_text) if s.strip()]
-            cleaned_sentences = []
+if uploaded_file is not None:
+    raw_text = uploaded_file.read().decode("utf-8")
+    st.info(f"Ingested File: {uploaded_file.name} | {len(raw_text)} characters | {len(raw_text.split())} words")
 
-            for sentence in sentences:
-                sentence_removed = False
-                modified_sentence = sentence
-                
-                for f_id, res in resolutions.items():
-                    # Check if the sentence matches exact text or contains key trigger phrases
-                    exact_match = res["sentence"].lower() in sentence.lower()
-                    keyword_match = any(kw.lower() in sentence.lower() for kw in res["keywords"])
-                    
-                    if exact_match or keyword_match:
-                        if res["action"] == "REMOVE":
-                            sentence_removed = True
-                            break
-                        elif res["action"] == "REWRITE" and res["input"]:
-                            modified_sentence = res["input"]
-                
-                if not sentence_removed:
-                    cleaned_sentences.append(modified_sentence)
+    if st.button("Execute Governance Pipeline"):
+        doc_id = f"CIAT-DOC-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        timestamp = datetime.utcnow().isoformat() + "Z"
 
-            # Reconstruct final text
-            st.session_state.final_text = " ".join(cleaned_sentences)
-            
-            st.session_state.audit_log = {
-                "document_id": f"CIAT-MED-{datetime.utcnow().strftime('%Y%m%d')}-{platform}",
-                "practitioner_name": practitioner_name,
-                "license_type": license_type,
-                "phase_gates_passed": ["Phase_1", "Phase_2", "Phase_3"],
-                "resolutions": resolutions,
-                "audit_trail_complete": True,
-                "timestamp": datetime.utcnow().isoformat() + "Z"
-            }
-            st.session_state.phase = 4
-            st.success("Governance complete. Final post generated.")
+        # 1. Identity & Context Payload
+        identity_payload = {
+            "practitioner_id": practitioner_id,
+            "session_id": f"SESS-{hashlib.md5(timestamp.encode()).hexdigest()[:8]}",
+            "timestamp_utc": timestamp
+        }
+        hash_identity = compute_sha256(identity_payload)
 
-# ==========================================
-# PHASE 4: CLINICAL SOVEREIGNTY GATE
-# ==========================================
-if st.session_state.phase == 4:
-    st.markdown("---")
-    st.header("Phase 4: Clinical Sovereignty Gate & Final Post")
-    
-    p1 = st.slider("Pillar 1: Clinical Accuracy", 0, 10, 9)
-    p2 = st.slider("Pillar 2: Patient Safety", 0, 10, 10)
-    p3 = st.slider("Pillar 3: Ethics & Compliance", 0, 10, 9)
-    p4 = st.slider("Pillar 4: Professional Accountability", 0, 10, 9)
-    
-    total = p1 + p2 + p3 + p4
-    st.metric("Integrity Score", f"{total} / 40")
-    
-    if total >= 36 and st.session_state.audit_log.get("audit_trail_complete", False):
-        st.success("SOVEREIGN - APPROVED FOR PUBLICATION")
-        st.markdown("### Final Governed Publication Ready Output:")
-        st.code(st.session_state.get("final_text", ""), language="markdown")
+        # 2. Source Hierarchy & Ingestion Payload
+        hierarchy_payload = {
+            "document_id": doc_id,
+            "file_name": uploaded_file.name,
+            "raw_text": raw_text
+        }
+        hash_hierarchy = compute_sha256(hierarchy_payload)
+
+        # 3. Phase 1 Gate Audit
+        phase1_payload = {
+            "document_id": doc_id,
+            "status": "INGESTED",
+            "character_count": len(raw_text)
+        }
+        hash_phase1 = compute_sha256(phase1_payload)
+
+        # 4. Phase 2 Gate (Claim Detection & Filtering)
+        prohibited_terms = ["guaranteed", "100% cure", "instant result", "unverified"]
+        flagged = [term for term in prohibited_terms if term in raw_text.lower()]
         
-        with st.expander("View Object 6 Audit Log JSON"):
-            st.json(st.session_state.audit_log)
-    elif 28 <= total <= 35:
-        st.warning("CLINICAL REVIEW REQUIRED")
-    else:
-        st.error("DO NOT PUBLISH")
+        phase2_payload = {
+            "document_id": doc_id,
+            "flagged_claims": flagged,
+            "violation_count": len(flagged)
+        }
+        hash_phase2 = compute_sha256(phase2_payload)
+
+        # 5. Phase 3 Practitioner Gate (Sanitization)
+        sanitized_text = raw_text
+        for term in flagged:
+            sanitized_text = sanitized_text.replace(term, f"[FLAGGED: {term}]")
+
+        phase3_payload = {
+            "document_id": doc_id,
+            "sanitized_payload": sanitized_text,
+            "actions_taken": ["STRIPPED" if flagged else "NONE"]
+        }
+        hash_phase3 = compute_sha256(phase3_payload)
+
+        # 6. Phase 4 Clinical Sovereign Output (Cryptographic Signature)
+        master_string = f"{hash_identity}{hash_hierarchy}{hash_phase1}{hash_phase2}{hash_phase3}"
+        sig = hmac.new(license_key.encode('utf-8'), master_string.encode('utf-8'), hashlib.sha256).hexdigest()
+
+        phase4_payload = {
+            "document_id": doc_id,
+            "practitioner_id": practitioner_id,
+            "timestamp_utc": timestamp,
+            "hash_chain": {
+                "identity_context_hash": hash_identity,
+                "source_hierarchy_hash": hash_hierarchy,
+                "phase1_gate_hash": hash_phase1,
+                "phase2_gate_hash": hash_phase2,
+                "phase3_practitioner_gate_hash": hash_phase3
+            },
+            "hmac_sha256_signature": sig,
+            "verification_status": "PASSED" if not flagged else "REJECTED"
+        }
+
+        # Results Display
+        st.success("Pipeline Execution Complete.")
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader("Phase 4 Clinical Sovereign Ledger")
+            st.json(phase4_payload)
+
+        with col2:
+            st.subheader("Sanitized Output Document")
+            st.text_area("Sanitized Payload", sanitized_text, height=300)
+
+        # Full Master Audit Bundle Export
+        master_bundle = {
+            "CIAT_Practitioner_Identity_Context": identity_payload,
+            "CIAT_Source_Hierarchy_Schema": hierarchy_payload,
+            "CIAT_Phase1_Gate": phase1_payload,
+            "CIAT_Phase2_Gate": phase2_payload,
+            "CIAT_Phase3_Practitioner_Gate": phase3_payload,
+            "CIAT_Phase4_Clinical_Sovereign": phase4_payload
+        }
+
+        st.download_button(
+            label="Download Master Audit Certificate (JSON)",
+            data=json.dumps(master_bundle, indent=2),
+            file_name=f"{doc_id}_master_audit.json",
+            mime="application/json"
+        )
