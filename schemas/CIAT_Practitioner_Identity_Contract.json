@@ -1,11 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "CIATPractitionerIdentityContext",
+  "title": "CIATSourceHierarchySchema",
   "type": "object",
   "properties": {
-    "practitioner_id": { "type": "string" },
-    "session_id": { "type": "string" },
-    "timestamp_utc": { "type": "string", "format": "date-time" }
+    "document_id": { "type": "string" },
+    "anchor_title": { "type": "string" },
+    "anchor_version": { "type": "string" },
+    "content_length": { "type": "integer" },
+    "content_hash": { "type": "string" }
   },
-  "required": ["practitioner_id", "session_id", "timestamp_utc"]
+  "required": ["document_id", "anchor_title", "anchor_version", "content_length", "content_hash"]
 }
