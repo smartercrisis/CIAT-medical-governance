@@ -1,0 +1,42 @@
+{
+  "phase": "3_Human_In_The_Loop",
+  "gate_type": "PRACTITIONER_IDENTITY_GATE",
+  "identity_validation": [
+    {
+      "check": "practitioner_identity_contract_confirmed",
+      "condition": "license_confirmed field is true in identity contract",
+      "on_fail": "hard_stop - no Phase 3 input accepted from unconfirmed identity"
+    }
+  ],
+  "permitted_instructions": [
+    "REMOVE",
+    "REWRITE",
+    "SOURCE",
+    "APPROVE_WITH_DISCLOSURE"
+  ],
+  "agent_restrictions": [
+    "agent_does_not_suggest_corrections",
+    "agent_does_not_offer_alternative_wording_unless_asked",
+    "agent_implements_practitioner_instruction_exactly_as_given"
+  ],
+  "audit_log_required": true,
+  "audit_log_fields": [
+    "flag_number",
+    "original_sentence",
+    "flag_category",
+    "practitioner_instruction",
+    "practitioner_input",
+    "final_approved_version",
+    "practitioner_name",
+    "timestamp"
+  ],
+  "delegation_prohibited": {
+    "condition": "no third party may complete Phase 3",
+    "enforcement": "identity_contract_validation",
+    "on_violation": "hard_stop - Phase 3 input rejected"
+  },
+  "gate_status": {
+    "OPEN": "identity confirmed, all flags resolved, audit log generated",
+    "CLOSED": "identity unconfirmed OR flags unresolved OR log not generated"
+  }
+}
