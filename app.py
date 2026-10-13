@@ -13,11 +13,15 @@ if "identity_confirmed" not in st.session_state:
     st.session_state.identity_confirmed = False
 if "audit_log" not in st.session_state:
     st.session_state.audit_log = {}
+if "content_draft" not in st.session_state:
+    st.session_state.content_draft = ""
+if "flags" not in st.session_state:
+    st.session_state.flags = []
 
 # Sidebar Setup
 st.sidebar.header("Phase 0: Source & Identity Lock")
-practitioner_name = st.sidebar.text_input("Practitioner Full Name", value="Dr. ")
-professional_title = st.sidebar.text_input("Professional Title", value="Consultant / GP")
+practitioner_name = st.sidebar.text_input("Practitioner Full Name", value="Dr. Tarek Ali")
+professional_title = st.sidebar.text_input("Professional Title", value="Consultant General Practitioner")
 license_type = st.sidebar.selectbox("License Type", ["Doctor", "Pharmacist", "Medical_Content_Specialist"])
 specialty = st.sidebar.text_input("Specialty", value="General Practice")
 platform = st.sidebar.selectbox("Target Platform", ["Instagram", "LinkedIn", "Patient Handout", "Website"])
@@ -31,11 +35,11 @@ if st.sidebar.button("Lock Identity & Sources (Phase 0)"):
     else:
         st.error("Phase 0 failed: Practitioner name and source documents are required.")
 
-# Main Interface
+# Main Interface: Phase 1 & 2
 if st.session_state.phase >= 1:
     st.markdown("---")
     st.header("Phase 1 & 2: Claim Audit & Tier Verification")
-    content_draft = st.text_area("Paste Content Draft for Governance Scan", height=120)
+    st.session_state.content_draft = st.text_area("Paste Content Draft for Governance Scan", value=st.session_state.content_draft, height=120)
     
     if st.button("Run Deterministic Claim Audit"):
         st.session_state.flags = [
@@ -44,6 +48,7 @@ if st.session_state.phase >= 1:
         ]
         st.session_state.phase = 3
 
+# Phase 3: Practitioner Identity Gate
 if st.session_state.phase >= 3:
     st.markdown("---")
     st.header("Phase 3: Practitioner Identity Gate (Human-in-the-Loop)")
@@ -54,13 +59,23 @@ if st.session_state.phase >= 3:
     if auth_check:
         st.session_state.identity_confirmed = True
         resolutions = {}
-        for flag in st.session_state.get("flags", []):
+        for flag in st.session_state.flags:
             st.write(f"**Flag #{flag['id']} [{flag['category']}]**: *{flag['sentence']}*")
             action = st.selectbox(f"Instruction #{flag['id']}", ["REMOVE", "REWRITE", "SOURCE", "APPROVE_WITH_DISCLOSURE"], key=f"act_{flag['id']}")
-            input_text = st.text_input(f"Practitioner Input #{flag['id']}", key=f"inp_{flag['id']}")
-            resolutions[flag['id']] = {"action": action, "input": input_text}
+            input_text = st.text_input(f"Practitioner Input / Replacement Text #{flag['id']}", key=f"inp_{flag['id']}")
+            resolutions[flag['id']] = {"action": action, "input": input_text, "sentence": flag['sentence']}
             
-        if st.button("Generate Correction Audit Log (Object 6)"):
+        if st.button("Generate Final Governed Post & Audit Log (Object 6)"):
+            # Process final text modification
+            final_text = st.session_state.content_draft
+            for f_id, res in resolutions.items():
+                target_sentence = res["sentence"]
+                if res["action"] == "REMOVE":
+                    final_text = final_text.replace(target_sentence, "")
+                elif res["action"] == "REWRITE" and res["input"]:
+                    final_text = final_text.replace(target_sentence, res["input"])
+
+            st.session_state.final_text = final_text.strip()
             st.session_state.audit_log = {
                 "document_id": f"CIAT-MED-{datetime.utcnow().strftime('%Y%m%d')}-{platform}",
                 "practitioner_name": practitioner_name,
@@ -71,11 +86,12 @@ if st.session_state.phase >= 3:
                 "timestamp": datetime.utcnow().isoformat() + "Z"
             }
             st.session_state.phase = 4
-            st.success("Audit log generated successfully.")
+            st.success("Governance complete. Final post generated.")
 
+# Phase 4: Clinical Sovereignty Gate & Final Output
 if st.session_state.phase == 4:
     st.markdown("---")
-    st.header("Phase 4: Clinical Sovereignty Gate")
+    st.header("Phase 4: Clinical Sovereignty Gate & Final Post")
     
     p1 = st.slider("Pillar 1: Clinical Accuracy", 0, 10, 9)
     p2 = st.slider("Pillar 2: Patient Safety", 0, 10, 10)
@@ -87,7 +103,11 @@ if st.session_state.phase == 4:
     
     if total >= 36 and st.session_state.audit_log.get("audit_trail_complete", False):
         st.success("SOVEREIGN - APPROVED FOR PUBLICATION")
-        st.json(st.session_state.audit_log)
+        st.markdown("### Final Governed Publication Ready Output:")
+        st.code(st.session_state.get("final_text", ""), language="markdown")
+        
+        with st.expander("View Object 6 Audit Log JSON"):
+            st.json(st.session_state.audit_log)
     elif 28 <= total <= 35:
         st.warning("CLINICAL REVIEW REQUIRED")
     else:
