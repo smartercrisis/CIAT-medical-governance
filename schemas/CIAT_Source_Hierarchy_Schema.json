@@ -1,0 +1,27 @@
+{
+  "source_hierarchy": {
+    "TIER_1": {
+      "label": "Peer-reviewed research",
+      "requirement": "uploaded_document_required",
+      "on_missing": "downgrade_claim_to_TIER_5"
+    },
+    "TIER_2": {
+      "label": "Official clinical guidelines",
+      "requirement": "uploaded_document_required",
+      "on_missing": "downgrade_claim_to_TIER_5"
+    },
+    "TIER_3": {
+      "label": "Professional expert consensus",
+      "requirement": "practitioner_confirmation_required"
+    },
+    "TIER_4": {
+      "label": "General accepted medical knowledge",
+      "requirement": "practitioner_confirmation_required"
+    },
+    "TIER_5": {
+      "label": "AI-generated without source",
+      "requirement": "never_permitted_unresolved",
+      "on_detection": "hard_stop"
+    }
+  }
+}
