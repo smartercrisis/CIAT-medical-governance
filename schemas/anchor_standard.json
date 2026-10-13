@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CIAT_Medical_Governance_Anchor_Standard",
+  "version": "1.0.0",
+  "metadata": {
+    "framework": "FDA_21CFR202_ICMJE_HIPAA_COMBINED",
+    "scope": "Clinical Manuscript & Trial Protocol Verification",
+    "effective_date": "2026-01-01"
+  },
+  "regulatory_mandates": [
+    {
+      "rule_id": "MANDATE_FDA_01",
+      "regulatory_reference": "FDA 21 CFR Part 202.1",
+      "category": "FAIR_BALANCE_AND_EFFICACY",
+      "requirement": "All claims of therapeutic efficacy must be balanced by explicit statements regarding risk, contraindications, and adverse effects.",
+      "trigger_patterns": [
+        "guaranteed recovery",
+        "100% cure",
+        "instant result",
+        "miracle cure",
+        "permanent fix",
+        "completely risk-free"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "rule_id": "MANDATE_ICMJE_02",
+      "regulatory_reference": "ICMJE Recommendations Section II.A",
+      "category": "AUTHORSHIP_AND_CITATION_INTEGRITY",
+      "requirement": "Clinical assertions must include parenthetical citations referencing peer-reviewed literature or clinical trial registration IDs.",
+      "trigger_patterns": [
+        "clinically proven",
+        "fda approved",
+        "unverified study",
+        "replaces physician care",
+        "no doctor needed"
+      ],
+      "severity": "HIGH"
+    },
+    {
+      "rule_id": "MANDATE_HIPAA_03",
+      "regulatory_reference": "45 CFR § 164.514 (Safe Harbor De-identification)",
+      "category": "PATIENT_DATA_PROTECTION",
+      "requirement": "Protected Health Information (PHI) indicators must not appear in manuscript drafts.",
+      "trigger_patterns": [
+        "mrn:",
+        "patient name:",
+        "ssn:",
+        "dob:"
+      ],
+      "severity": "CRITICAL"
+    }
+  ]
+}
