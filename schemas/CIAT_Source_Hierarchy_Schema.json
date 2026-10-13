@@ -1,27 +1,11 @@
 {
-  "source_hierarchy": {
-    "TIER_1": {
-      "label": "Peer-reviewed research",
-      "requirement": "uploaded_document_required",
-      "on_missing": "downgrade_claim_to_TIER_5"
-    },
-    "TIER_2": {
-      "label": "Official clinical guidelines",
-      "requirement": "uploaded_document_required",
-      "on_missing": "downgrade_claim_to_TIER_5"
-    },
-    "TIER_3": {
-      "label": "Professional expert consensus",
-      "requirement": "practitioner_confirmation_required"
-    },
-    "TIER_4": {
-      "label": "General accepted medical knowledge",
-      "requirement": "practitioner_confirmation_required"
-    },
-    "TIER_5": {
-      "label": "AI-generated without source",
-      "requirement": "never_permitted_unresolved",
-      "on_detection": "hard_stop"
-    }
-  }
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CIATSourceHierarchySchema",
+  "type": "object",
+  "properties": {
+    "document_id": { "type": "string" },
+    "file_name": { "type": "string" },
+    "raw_text": { "type": "string" }
+  },
+  "required": ["document_id", "file_name", "raw_text"]
 }
